@@ -1,0 +1,319 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r}
+library(readr)
+library(dplyr)
+```
+
+```{r}
+data = read.csv("Salary Data Export.csv")
+
+head(data)
+```
+
+```{r}
+# Create years of experience variable 
+
+years_of_experience = 2024 - data$Initial.Hire
+
+data$years_of_experience = years_of_experience
+
+```
+
+
+```{r}
+college_of_arts_and_sciences = filter(data, Department %in% c("African Afrl-Amer and Diaspora", "American Studies", "Anthropology", "Applied Physical Sciences", "Art - Art History","Arts and Sciences Deans Office", "Asian & Middle Eastern Studies", "Biochemistry and Biophysics", "Biology", "Chemistry", "Classics", "Communication", "Computer Science", "Dramatic Art", "Earth Marine Environmt Sci", "Economics", "English and Comp Literature", "Entrepreneurship","Envir Sciences and Engineering", "Exercise and Sport Science", "Geography","Germanic and Slavic Lang Lit", "Global Studies", "History", "Linguistics", "Mathematics", "Music","Philosophy", "Physics and Astronomy", "Political Science", "Psychology and Neuroscience","Public Policy", "Religious Studies", "Romance Studies","Sociology", "Statistics and Operations Res", "Womens and Gender Stds" ))
+
+```
+
+
+```{r}
+# Calculate number of professors for each department
+
+department_count = college_of_arts_and_sciences %>%
+  group_by(Department) %>%
+  summarize(Count = n())
+
+print(department_count)
+```
+
+
+```{r}
+# Theoretical Model and Notes
+
+# Tenure Track (Assistant Prof -> Associate Prof -> Professor) 
+
+# Look at breakdown of men and women in each rank 
+
+# Tenured vs not
+
+# Structure of Power (Department Chair, Director of Graduate Studies) 
+
+# Create benchmark indexes and then aggregate to find total department index score
+
+# Departments indexed (D) i = 1 -> N
+
+# Equity metrics (E) indexed from j = 1 -> 3 
+
+# Metric 1 -> Salary Differences
+
+# Metric 2 -> Tenure Track Differences 
+
+# Metric 3 -> Leadership Position Differences 
+
+# Index Score = Summation from i= 1 -> N    Department sub i,j - (E sub i,j)
+```
+
+```{r}
+# Metric 1 -> Salary Differences
+
+# Calculate Average Salaries for each Department
+
+Average_Salary_CAS = college_of_arts_and_sciences %>%
+  group_by(Department) %>%
+  summarize(Average_Salary_CAS = mean(Salary, na.rm = TRUE))
+
+Median_Salary_CAS = college_of_arts_and_sciences %>% 
+  group_by(Department) %>%
+  summarize(Median_Salary_CAS = median(Salary, na.rm = TRUE))
+
+salary_summaries_per_department_CAS = data.frame(
+  Average_Salary_CAS,
+  Median_Salary_CAS
+)
+
+salary_summaries_per_department_CAS = salary_summaries_per_department_CAS %>%
+  select(-Department.1)
+
+salary_summaries_per_department_CAS
+
+```
+
+```{r}
+# Salary Calculations by Rank
+average_salary_per_rank_CAS = college_of_arts_and_sciences %>%
+  group_by(Primary.Working.Title) %>%
+  summarize(average_salary_per_rank_CAS = mean(Salary, na.rm = TRUE))
+
+median_salary_per_rank_CAS = college_of_arts_and_sciences %>%
+  group_by(Primary.Working.Title) %>%
+  summarize(median_salary_per_rank_CAS = median(Salary, na.rm = TRUE))
+
+salary_summaries_per_rank_CAS = data.frame(
+  average_salary_per_rank_CAS,
+  median_salary_per_rank_CAS
+)
+
+salary_summaries_per_rank_CAS = salary_summaries_per_rank_CAS %>%
+  select(-Primary.Working.Title.1)
+
+salary_summaries_per_rank_CAS
+```
+
+```{r}
+# Metric 1 Calculations
+
+percent_female_per_department = college_of_arts_and_sciences %>%
+  group_by(Department) %>%
+  summarise(female_count = sum(Gender == "Female"),
+            department_count = n()) %>% 
+  mutate(percent_female = round((female_count / department_count) * 100, 2))
+
+percent_female_per_department
+
+```
+
+```{r}
+# Metric 1: Salary Differences
+
+# Step 1: Calculate median salary for males and females in each department
+
+median_salary_by_gender = college_of_arts_and_sciences %>%
+  group_by(Department, Gender) %>%
+  summarise(median_salary = median(Salary, na.rm = TRUE))
+
+median_salary_female = median_salary_by_gender %>%
+  filter(Gender == "Female")
+
+median_salary_male = median_salary_by_gender %>%
+  filter(Gender == "Male")
+
+# Join the female and male median salary data on Department
+
+median_salary_diff = median_salary_female %>%
+  left_join(median_salary_male, by = "Department", suffix = c("_female", "_male")) %>%
+  mutate(Salary_Difference = median_salary_female - median_salary_male)  # Calculate the difference
+
+median_salary_diff = median_salary_diff %>%
+  select(-c(Gender_female, Gender_male))
+
+median_salary_diff
+```
+
+```{r}
+# Step 2: 
+
+# Calculate thresholds of salary differences to assign a metric 1 score (if difference is < 10% than assign 0.5, if > 10% than assign 1)
+
+median_salary_diff = median_salary_diff %>%
+  mutate(metric_one_score = case_when(
+    Salary_Difference > 0 ~ 0, 
+    abs(Salary_Difference) <= 0.1 * median_salary_female ~ -0.5,  # small gap
+    abs(Salary_Difference) > 0.1 * median_salary_female ~ -1  # large gap
+  ))
+
+median_salary_diff
+```
+
+```{r}
+median_salary_diff_results = data.frame(median_salary_diff$Department, median_salary_diff$metric_one_score)
+
+median_salary_diff_results = median_salary_diff_results %>%
+  arrange(desc(median_salary_diff.metric_one_score)) %>%  
+  select(median_salary_diff.Department, median_salary_diff.metric_one_score, everything())
+
+
+median_salary_diff_results
+```
+
+
+```{r}
+# Metric 2: Tenure Track Differences
+
+tenure_track = college_of_arts_and_sciences %>%
+  filter(Primary.Working.Title %in% c("Assistant Professor", "Associate Professor", "Professor"))
+
+```
+
+```{r}
+# Calculate General Benchmark for each rank
+percent_female_tenure_track = tenure_track %>%
+  group_by(Primary.Working.Title) %>%
+  summarise(female_count_tenure = sum(Gender == "Female"),
+            rank_count_tenure = n()) %>% 
+  mutate(percent_female_tenure_track = round((female_count_tenure / rank_count_tenure) * 100, 2))
+
+percent_female_tenure_track
+```
+
+```{r}
+# Calculate Breakdown for each Department and compare to benchmark using threshold metrics
+
+# Breakdown by Rank and Department
+
+percent_female_by_rank = tenure_track %>%
+  group_by(Department, Primary.Working.Title) %>%
+  summarise(
+    female_count_dep_rank = sum(Gender == "Female", na.rm = TRUE),  
+    total_count_dep_rank = n(),                                    
+    percent_female_dep_rank = round((female_count_dep_rank / total_count_dep_rank) * 100, 2)
+  )
+
+# View the result
+percent_female_by_rank
+```
+
+```{r}
+# Now compare and assign metric score
+
+comparison_df = percent_female_by_rank %>%
+  left_join(percent_female_tenure_track, by = "Primary.Working.Title", suffix = c("_department", "_college"))
+
+# Calculate differences and then normalize to ensure values are in the interval [-1, 1]
+comparison_df = comparison_df %>%
+  group_by(Primary.Working.Title) %>%
+  mutate(
+    gender_difference = percent_female_dep_rank - percent_female_tenure_track,
+    max_difference = max(abs(gender_difference), na.rm = TRUE),  
+    normalized_score = gender_difference / max_difference  
+  ) %>%
+  ungroup()
+
+
+comparison_df = comparison_df %>%
+  arrange(desc(normalized_score)) %>%  
+  select(Department, normalized_score, everything())
+
+comparison_df
+```
+
+```{r}
+# Metric 3: Leadership Position Differences (Department Chair and Director of Graduate Studies)
+
+department_chairs = college_of_arts_and_sciences %>%
+  filter(Job.Category %in% c("Professor (Primary) and Department Chair/Head", 
+                             "Associate Professor (Primary) and Department Chair/Head")) %>%
+  select(Department, Gender) %>%
+  mutate(Department_Chair_Gender = Gender)  
+
+# Calculate metric with following logic: If female chair, metric = 1 * percent of department that is female, if male chair, metric = 0 if more males than females in department, but penalized if more females than males
+
+metric_three_comparison_df = percent_female_per_department %>%
+  left_join(department_chairs, by = "Department")
+
+# Step 4: Calculate the third metric
+metric_three_comparison_df = metric_three_comparison_df %>%
+  mutate(
+    # Check if the department has more female faculty than male
+    more_females_than_males = percent_female > 50,
+    
+    # Apply the third metric with penalties
+    third_metric = case_when(
+      more_females_than_males & Department_Chair_Gender == "Male" ~ ((percent_female * -0.5) /100),
+      Department_Chair_Gender == "Female" ~ (percent_female / 100),  
+      TRUE ~ (percent_female / 100) 
+    )
+  )
+
+metric_three_comparison_df = metric_three_comparison_df %>%
+  arrange(desc(third_metric)) %>%  
+  select(Department, third_metric, everything())
+
+
+metric_three_comparison_df
+```
+
+```{r}
+# Create Final Weighted Index 
+
+metric2_comparison_df_aggregated = comparison_df %>%
+  group_by(Department) %>%
+  summarise(
+    metric2_score = mean(normalized_score, na.rm = TRUE))
+
+final_index_df = median_salary_diff %>%
+  left_join(metric2_comparison_df_aggregated, by = "Department") %>%
+  left_join(metric_three_comparison_df, by = "Department")
+
+weights <- c(metric1_weight = 0.2, metric2_weight = 0.3, metric3_weight = 0.3)
+
+# Calculate composite index using a weighted average
+
+final_index_df <- final_index_df %>%
+  mutate(
+    Gender_Equity_Index = ((metric_one_score * weights["metric1_weight"]) +
+                              (metric2_score * weights["metric2_weight"]) +
+                              (third_metric * weights["metric3_weight"])
+  ))
+
+final_index_df = final_index_df %>%
+  select(-c(median_salary_female, median_salary_male, Salary_Difference, Gender, Department_Chair_Gender,more_females_than_males, female_count, department_count, percent_female))
+
+         
+final_index_df = final_index_df %>%
+  rename(
+    metric_two_score = metric2_score,
+    metric_three_score = third_metric
+  )
+
+final_index_df$Gender_Equity_Index = final_index_df$Gender_Equity_Index * 10
+
+final = final_index_df %>%
+  arrange(desc(Gender_Equity_Index)) %>%  
+  select(Department, Gender_Equity_Index, everything())
+
+```
+
