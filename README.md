@@ -13,7 +13,7 @@ Gender equity in academia impacts who studies certain fields and their career ou
 
 ## Methodology  
 
-We created **three metrics** to measure gender equity (higher score = better equity):
+I created **three metrics** to measure gender equity (higher score = better equity):
 
 1. **Salary Equity**  
    - Median salaries compared by gender within each department  
@@ -48,10 +48,3 @@ Metrics were combined using a weighted sum:
 - Women faculty presence encourages more women to pursue those fields, improving diversity and educational quality.  
 - Limitations include lack of race data and inability to control for merit-based pay differences.  
 - Future research should explore policies to increase faculty diversity or support female students to create more balanced academic fields.
-
----
-
-## Works Cited  
-- Bowdler, J., & Harris, B. (2022). *Racial Inequality in the United States*. U.S. Department of the Treasury.  
-- Magliano, D.J., et al. (2020). *Addressing Gender Equity in Senior Leadership Roles in Translational Science*. ACS Pharmacol Transl Sci, 3(4), 773-779.
-
